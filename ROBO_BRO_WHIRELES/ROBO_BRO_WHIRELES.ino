@@ -72,5 +72,3 @@ void Move(byte &leftState, byte &leftPower, byte &rightState, byte &rightPower)
     digitalWrite(RIGHT_BACKWARD, !rightState);
 }
 
-
-

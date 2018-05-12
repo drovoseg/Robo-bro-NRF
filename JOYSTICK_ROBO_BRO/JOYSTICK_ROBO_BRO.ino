@@ -62,9 +62,69 @@ void sendStop() {
   sendEngineState(0, 0, 0, 0);
 }
 
+void sendXY(long x, long y) {
+  byte leftState;
+  byte leftPower;
+  byte rightState;
+  byte rightPower;
+
+
+  if (y >= 512) {
+    leftState = rightState = 1;
+  } else {
+    leftState = rightState = 0;
+  }
+
+  long defaultX = 0;
+  long defaultY = 512;
+
+  long deltaX = abs(x - 512);
+  long deltaY = abs(y - 512);
+
+  double angle = abs(deltaX * defaultX + deltaY * defaultY)
+                 / (sqrt(defaultX * defaultX + defaultY * defaultY) * sqrt(deltaX * deltaX + deltaY * deltaY));
+
+  double rads = acos(angle);
+
+  long tX = x; long tY = y;
+  tX += 1023 - max(x, y);
+  tY += 1023 - max(x, y);
+
+  double power = sqrt((x - 512) * (x - 512) + (y - 512) * (y - 512));
+  double power2 = sqrt((tX - 512) * (tX - 512) + (tY - 512) * (tY - 512));
+
+  double k = (power / power2);
+  if(k > 1)
+    k = 1;
+
+  k = pow(k, 10);
+  
+  if (x > 512) {
+    rightPower = 255 * (1 - (rads / 1.57)) * k;
+    leftPower = 255 * k;
+  } else {
+    leftPower = 255 *  (1 - (rads / 1.57)) * k;
+    rightPower = 255 * k;
+  }
+
+//  Serial.println(x);
+//  Serial.println(k);
+//  Serial.println(leftState);
+//  Serial.println(leftPower);
+//
+//  Serial.println(rightState);
+//  Serial.println(rightPower);
+//
+//  
+//  Serial.println();
+
+  sendEngineState(leftState, leftPower, rightState, rightPower);
+}
+
+
 bool anyButtonPressed = false;
 bool wasPressedOnLastTick = false;
-long lastStopTime = 0;
+long lastStopTime = -999999;
 void loop()
 {
   anyButtonPressed = false;
@@ -103,16 +163,27 @@ void loop()
     }
     oldCommand = COMMAND_LEFT;
     anyButtonPressed = true;
+  } else {
+    int x = analogRead(0);
+    int y = analogRead(1);
+
+   
+    if (x > 515 || x < 508 || y > 515 || y < 508) {
+      sendXY(x, y);
+      anyButtonPressed = true;
+    }   
   }
   if (!anyButtonPressed
       && !wasPressedOnLastTick
-      && millis() - lastStopTime > 500) {            
+      && millis() - lastStopTime > 3000) {
     sendStop();
+    printf("STOP timer\n");
     lastStopTime = millis();
   }
 
-  if (!anyButtonPressed && wasPressedOnLastTick) {    
+  if (!anyButtonPressed && wasPressedOnLastTick) {
     sendStop();
+    printf("STOP released\n");
     lastStopTime = millis();
   }
 
@@ -121,5 +192,4 @@ void loop()
   }
 
   wasPressedOnLastTick = anyButtonPressed;
-  //delay(10);
 }
